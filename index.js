@@ -48,49 +48,6 @@ class Bank {
         return client;
     }
 
-    calcMoneyTotal() {
-        let result = 0;
-
-        this.#clients.forEach(({ accounts }) => {
-            accounts.forEach(account => {
-                if (account.type === 'debit') {
-                    let { currency, balance } = account;
-
-                    if (currency === 'USD') {
-                        result += balance;
-
-                        return account;
-                    }
-
-                    result += this.conversionCurrencyUsd(currency, balance); // TODO
-
-                    return account;
-                }
-
-                if (account.type === 'credit') {
-                    let { own, credit } = account.balance;
-                    let balance = own + credit;
-
-                    if (account.currency === 'USD') {
-                        result += balance;
-
-                        return account;
-                    }
-
-                    result += this.conversionCurrencyUsd(currency, balance); // TODO
-
-                    return account;
-                }
-
-                return null;
-            });
-        });
-
-        return result;
-    }
-
-    conversionCurrencyUsd(type, amount) {}
-
     makeClientAccountTransaction(clientId, type, amount, currency, callback) {
         let client = this.findClientById(clientId);
 
@@ -160,14 +117,66 @@ class Bank {
         return `${date.getMonth() + 1}/${date.getFullYear() + 3}`;
     }
 
-    async fetchCurrencyRates() {
+    conversionCurrencyToUsd(rates, type, amount) {
+        let result = null;
+        let baseCurrencyRate = null;
+    }
+
+    async calcMoneyTotal() {
+        const ratesCurrency = await this.getCurrencyRates();
+        let result = 0;
+
+        this.#clients.forEach(({ accounts }) => {
+            accounts.forEach(account => {
+                if (account.type === 'debit') {
+                    let { currency, balance } = account;
+
+                    if (currency === 'USD') {
+                        result += balance;
+
+                        return account;
+                    }
+
+                    result += this.conversionCurrencyToUsd(
+                        ratesCurrency,
+                        currency,
+                        balance,
+                    );
+
+                    return account;
+                }
+
+                if (account.type === 'credit') {
+                    let { own, credit } = account.balance;
+                    let balance = own + credit;
+
+                    if (account.currency === 'USD') {
+                        result += balance;
+
+                        return account;
+                    }
+
+                    // result += this.conversionCurrencyUsd(currency, balance); // TODO
+
+                    return account;
+                }
+
+                return null;
+            });
+        });
+
+        return result;
+    }
+
+    async getCurrencyRates() {
         const url =
             'https://api.privatbank.ua/p24api/pubinfo?json&exchange&coursid=5';
 
         try {
             const response = await fetch(url);
+            const rates = await response.json();
 
-            return await response.json();
+            return rates;
         } catch (error) {
             return error;
         }
@@ -175,8 +184,8 @@ class Bank {
 }
 
 const pb = new Bank();
-// console.log(pb.conversionCurrencyUsd());
-pb.calcMoneyTotal();
+
+console.log(pb.calcMoneyTotal());
 
 pb.addClient({ firstName: 'max', middleName: 'max', lastName: 'max' });
 pb.addClient({ firstName: 'den', middleName: 'den', lastName: 'den' });
@@ -188,6 +197,7 @@ pb.createClientAccount(1, 'credit', 'USD');
 pb.createClientAccount(1, 'credit', 'UAH');
 
 // console.log(pb.getCurrencyCourse());
+
 // console.log(
 //     pb.transactionClientAccount(
 //         1,
