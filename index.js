@@ -19,7 +19,7 @@ class Bank {
         return true;
     }
 
-    addClientAccount(id, type, currency) {
+    createClientAccount(id, type, currency) {
         const client = this.findClientById(id);
 
         if (client === undefined) {
@@ -29,7 +29,7 @@ class Bank {
         const account = {
             type,
             balance: null,
-            expiryDate: this.calcExpiryDate(),
+            expiryDate: this.calcExpiryDateClientCard(),
             currency,
             isActive: true,
         };
@@ -52,12 +52,47 @@ class Bank {
         let result = 0;
 
         this.#clients.forEach(({ accounts }) => {
-            accounts.forEach(account => {});
+            accounts.forEach(account => {
+                if (account.type === 'debit') {
+                    let { currency, balance } = account;
+
+                    if (currency === 'USD') {
+                        result += balance;
+
+                        return account;
+                    }
+
+                    result += this.conversionCurrencyUsd(currency, balance); // TODO
+
+                    return account;
+                }
+
+                if (account.type === 'credit') {
+                    let { own, credit } = account.balance;
+                    let balance = own + credit;
+
+                    if (account.currency === 'USD') {
+                        result += balance;
+
+                        return account;
+                    }
+
+                    result += this.conversionCurrencyUsd(currency, balance); // TODO
+
+                    return account;
+                }
+
+                return null;
+            });
         });
+
+        return result;
     }
 
-    transactionClientAccount(id, type, amount, currency, callback) {
-        let client = this.findClientById(id);
+    conversionCurrencyUsd(type, amount) {}
+
+    makeClientAccountTransaction(clientId, type, amount, currency, callback) {
+        let client = this.findClientById(clientId);
 
         if (client === undefined) {
             return null;
@@ -69,6 +104,7 @@ class Bank {
                 // Операции по дебитовому счету
                 if (type === 'debit') {
                     let { balance } = account;
+
                     result = callback(balance, amount);
 
                     if (result < 0) {
@@ -118,22 +154,40 @@ class Bank {
         return this.#clients.find(client => client.id === id);
     }
 
-    calcExpiryDate() {
+    calcExpiryDateClientCard() {
         const date = new Date();
 
         return `${date.getMonth() + 1}/${date.getFullYear() + 3}`;
     }
+
+    async fetchCurrencyRates() {
+        const url =
+            'https://api.privatbank.ua/p24api/pubinfo?json&exchange&coursid=5';
+
+        try {
+            const response = await fetch(url);
+
+            return await response.json();
+        } catch (error) {
+            return error;
+        }
+    }
 }
 
 const pb = new Bank();
+// console.log(pb.conversionCurrencyUsd());
+pb.calcMoneyTotal();
 
 pb.addClient({ firstName: 'max', middleName: 'max', lastName: 'max' });
 pb.addClient({ firstName: 'den', middleName: 'den', lastName: 'den' });
 pb.addClient({ firstName: 'ivan', middleName: 'ivan', lastName: 'ivan' });
 
-pb.addClientAccount(1, 'debit', 'uah');
-pb.addClientAccount(1, 'debit', 'usd');
-pb.addClientAccount(1, 'credit', 'rub');
+pb.createClientAccount(1, 'debit', 'UAH');
+pb.createClientAccount(1, 'debit', 'USD');
+pb.createClientAccount(1, 'credit', 'USD');
+pb.createClientAccount(1, 'credit', 'UAH');
+
+// console.log(pb.getCurrencyCourse());
 // console.log(
 //     pb.transactionClientAccount(
 //         1,
@@ -163,4 +217,4 @@ pb.addClientAccount(1, 'credit', 'rub');
 
 // console.log(pb.topUpClientAccount(2, 'credit', 1000));
 
-console.log(pb);
+// console.log(pb);
