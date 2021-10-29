@@ -111,6 +111,14 @@ class Bank {
         return this.#clients.find(client => client.id === id);
     }
 
+    blockClinetById(id) {
+        return this.#clients.find(client => {
+            if (client.id === id) {
+                client.isActive = false;
+            }
+        });
+    }
+
     calcExpiryDateClientCard() {
         const date = new Date();
 
@@ -119,18 +127,34 @@ class Bank {
 
     conversionCurrencyToUsd(rates, type, amount) {
         let result = null;
-        let baseCurrencyRate = null;
+        let baseCurrencyRate = rates.find(({ ccy }) => ccy === 'USD');
+
+        if (type === 'UAH') {
+            result = amount / baseCurrencyRate.sale;
+
+            return Math.round(result * 100) / 100;
+        }
+
+        rates.forEach(({ ccy, buy }) => {
+            if (type === ccy) {
+                result = (amount * buy) / baseCurrencyRate.sale;
+
+                return result;
+            }
+        });
+
+        return Math.round(result * 100) / 100;
     }
 
-    async calcMoneyTotal() {
-        const ratesCurrency = await this.getCurrencyRates();
+    async calcAmountTotal() {
+        const currencyRates = await this.getCurrencyRates();
         let result = 0;
 
         this.#clients.forEach(({ accounts }) => {
             accounts.forEach(account => {
-                if (account.type === 'debit') {
-                    let { currency, balance } = account;
+                let { type, currency, balance } = account;
 
+                if (type === 'debit') {
                     if (currency === 'USD') {
                         result += balance;
 
@@ -138,7 +162,7 @@ class Bank {
                     }
 
                     result += this.conversionCurrencyToUsd(
-                        ratesCurrency,
+                        currencyRates,
                         currency,
                         balance,
                     );
@@ -148,21 +172,70 @@ class Bank {
 
                 if (account.type === 'credit') {
                     let { own, credit } = account.balance;
-                    let balance = own + credit;
+                    let totalAmount = own + credit;
 
-                    if (account.currency === 'USD') {
-                        result += balance;
+                    if (currency === 'USD') {
+                        result += totalAmount;
 
                         return account;
                     }
 
-                    // result += this.conversionCurrencyUsd(currency, balance); // TODO
+                    result += this.conversionCurrencyToUsd(
+                        currencyRates,
+                        currency,
+                        totalAmount,
+                    );
 
                     return account;
                 }
 
                 return null;
             });
+        });
+
+        return result;
+    }
+
+    async calcAmountClientsOwe(callback) {
+        const currencyRates = await this.getCurrencyRates();
+        let result = { amount: 0, numberDebtors: 0 };
+
+        this.#clients.forEach(({ isActive, accounts }) => {
+            if (!callback(isActive)) {
+                return false;
+            }
+
+            const totalDebt = accounts.reduce((acc, accounut) => {
+                let { type, currency } = accounut;
+
+                if (type === 'credit') {
+                    let loanAmount =
+                        accounut.creditLimit - accounut.balance.credit;
+
+                    if (loanAmount < 0) {
+                        return acc;
+                    }
+
+                    if (currency === 'USD') {
+                        acc += loanAmount;
+
+                        return acc;
+                    }
+
+                    acc += this.conversionCurrencyToUsd(
+                        currencyRates,
+                        currency,
+                        loanAmount,
+                    );
+
+                    return acc;
+                }
+            }, 0);
+
+            if (totalDebt > 0) {
+                result.numberDebtors++;
+            }
+            result.amount += totalDebt;
         });
 
         return result;
@@ -182,49 +255,3 @@ class Bank {
         }
     }
 }
-
-const pb = new Bank();
-
-console.log(pb.calcMoneyTotal());
-
-pb.addClient({ firstName: 'max', middleName: 'max', lastName: 'max' });
-pb.addClient({ firstName: 'den', middleName: 'den', lastName: 'den' });
-pb.addClient({ firstName: 'ivan', middleName: 'ivan', lastName: 'ivan' });
-
-pb.createClientAccount(1, 'debit', 'UAH');
-pb.createClientAccount(1, 'debit', 'USD');
-pb.createClientAccount(1, 'credit', 'USD');
-pb.createClientAccount(1, 'credit', 'UAH');
-
-// console.log(pb.getCurrencyCourse());
-
-// console.log(
-//     pb.transactionClientAccount(
-//         1,
-//         'debit',
-//         5000,
-//         'usd',
-//         (balance, amount) => balance + amount,
-//     ),
-// );
-// pb.transactionClientAccount(
-//     1,
-//     'debit',
-//     4999,
-//     (balance, amount) => balance - amount,
-// );
-// pb.topUpClientAccount(1, 'credit', 2000);
-
-// pb.addClientAccount(2, 'debit', 'USD');
-// pb.addClientAccount(2, 'credit', 'USD');
-// pb.topUpClientAccount(2, 'debit', 3000);
-// pb.topUpClientAccount(2, 'credit', 4000);
-
-// pb.addClientAccount(3, 'debit', 'EUR');
-// pb.addClientAccount(3, 'credit', 'EUR');
-// pb.topUpClientAccount(3, 'debit', 5000);
-// pb.topUpClientAccount(3, 'credit', 6000);
-
-// console.log(pb.topUpClientAccount(2, 'credit', 1000));
-
-// console.log(pb);
