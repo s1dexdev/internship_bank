@@ -8,7 +8,7 @@ class Bank {
     }
 
     addClient(client) {
-        client.id = this.#genId;
+        client.id = this.#genId; // Temp
         client.isActive = true;
         client.registrationDate = new Date();
         client.accounts = [];
