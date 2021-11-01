@@ -113,14 +113,6 @@ class Bank {
         return this.#clients.find(client => client.id === id);
     }
 
-    blockClinetById(id) {
-        return this.#clients.find(client => {
-            if (client.id === id) {
-                client.isActive = false;
-            }
-        });
-    }
-
     calcExpiryDateClientCard() {
         const date = new Date();
 
