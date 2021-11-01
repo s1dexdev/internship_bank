@@ -30,7 +30,7 @@ class Bank {
             type,
             number: this.#genId, // Temp
             balance: null,
-            expiryDate: this.calcExpiryDateClientCard(1, 3),
+            expiryDate: this.setExpiryDateClientCard(1, 3),
             currency,
             isActive: true,
         };
@@ -113,7 +113,7 @@ class Bank {
         return this.#clients.find(client => client.id === id);
     }
 
-    calcExpiryDateClientCard(month, year) {
+    setExpiryDateClientCard(month, year) {
         const date = new Date();
 
         return `${date.getMonth() + month}/${date.getFullYear() + year}`;
@@ -140,7 +140,7 @@ class Bank {
         return Math.round(result * 100) / 100;
     }
 
-    async calcAmountTotal() {
+    async getAmountTotal() {
         const currencyRates = await this.getCurrencyRates();
         let result = 0;
 
@@ -190,7 +190,7 @@ class Bank {
         return result;
     }
 
-    async calcAmountClientsOwe(callback) {
+    async getAmountClientsOwe(callback) {
         const currencyRates = await this.getCurrencyRates();
         let result = { amount: 0, numberDebtors: 0 };
 
