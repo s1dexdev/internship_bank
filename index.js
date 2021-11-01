@@ -50,7 +50,7 @@ class Bank {
         return client;
     }
 
-    makeClientAccountTransaction(id,number, type, amount, callback) {
+    makeClientAccountTransaction(id, number, type, amount, callback) {
         let client = this.findClientById(id);
 
         if (client === undefined) {
@@ -60,7 +60,7 @@ class Bank {
         let transactionResult = client.accounts.find(account => {
             if (account.number === number) {
                 let result = null;
-                // Операции по дебитовому счету
+                // Пополнение или снятие средств с дебитового счета
                 if (type === 'debit') {
                     let { balance } = account;
 
@@ -74,7 +74,7 @@ class Bank {
 
                     return account;
                 }
-                // Операции по кредитному счету
+                // Пополнение или снятие средств с кредитного счета
                 if (type === 'credit') {
                     let { credit } = account.balance;
 
