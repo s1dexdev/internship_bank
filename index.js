@@ -30,7 +30,7 @@ class Bank {
             type,
             number: this.#genId, // Temp
             balance: null,
-            expiryDate: this.calcExpiryDateClientCard(),
+            expiryDate: this.calcExpiryDateClientCard(1, 3),
             currency,
             isActive: true,
         };
@@ -113,10 +113,10 @@ class Bank {
         return this.#clients.find(client => client.id === id);
     }
 
-    calcExpiryDateClientCard() {
+    calcExpiryDateClientCard(month, year) {
         const date = new Date();
 
-        return `${date.getMonth() + 1}/${date.getFullYear() + 3}`;
+        return `${date.getMonth() + month}/${date.getFullYear() + year}`;
     }
 
     conversionCurrencyToUsd(rates, type, amount) {
