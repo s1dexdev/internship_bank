@@ -1,20 +1,20 @@
 class Bank {
     #clients;
-    #clientId; // Temp
+    #genId; // Temp
 
     constructor() {
         this.#clients = [];
-        this.#clientId = 1; // Temp
+        this.#genId = 1; // Temp
     }
 
     addClient(client) {
-        client.id = this.#clientId;
+        client.id = this.#genId;
         client.isActive = true;
-        client.registrationDate = new Date().toLocaleString();
+        client.registrationDate = new Date();
         client.accounts = [];
 
         this.#clients.push(client);
-        this.#clientId++; // Temp
+        this.#genId++; // Temp
 
         return true;
     }
@@ -28,6 +28,7 @@ class Bank {
 
         const account = {
             type,
+            number: this.#genId, // Temp
             balance: null,
             expiryDate: this.calcExpiryDateClientCard(),
             currency,
@@ -44,19 +45,20 @@ class Bank {
         }
 
         client.accounts.push(account);
+        this.#genId++; // Temp
 
         return client;
     }
 
-    makeClientAccountTransaction(clientId, type, amount, currency, callback) {
-        let client = this.findClientById(clientId);
+    makeClientAccountTransaction(id,number, type, amount, callback) {
+        let client = this.findClientById(id);
 
         if (client === undefined) {
             return null;
         }
 
         let transactionResult = client.accounts.find(account => {
-            if (account.currency === currency) {
+            if (account.number === number) {
                 let result = null;
                 // Операции по дебитовому счету
                 if (type === 'debit') {
