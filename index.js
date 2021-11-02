@@ -177,7 +177,7 @@ class Bank {
         return result;
     }
 
-    async getCurrencyRates() {
+    async getCurrencyRates(handleError) {
         const url =
             'https://api.privatbank.ua/p24api/pubinfo?json&exchange&coursid=5';
 
@@ -187,7 +187,9 @@ class Bank {
 
             return rates;
         } catch (error) {
-            return error;
+            handleError(error);
+
+            return null;
         }
     }
 }
