@@ -21,12 +21,13 @@ class Bank {
 
     createClientAccount(id, type, currency) {
         const client = this.findClientById(id);
+        let account = null;
 
         if (client === undefined) {
             return null;
         }
 
-        const account = {
+        account = {
             type,
             number: this.#genId, // Temp
             balance: null,
@@ -48,65 +49,6 @@ class Bank {
         this.#genId++; // Temp
 
         return client;
-    }
-
-    makeClientAccountTransaction(id, number, type, amount, callback) {
-        let client = this.findClientById(id);
-
-        if (client === undefined) {
-            return null;
-        }
-
-        let transactionResult = client.accounts.find(account => {
-            if (account.number === number) {
-                let result = null;
-                // Пополнение или снятие средств с дебитового счета
-                if (type === 'debit') {
-                    let { balance } = account;
-
-                    result = callback(balance, amount);
-
-                    if (result < 0) {
-                        return null;
-                    }
-
-                    account.balance = result;
-
-                    return account;
-                }
-                // Пополнение или снятие средств с кредитного счета
-                if (type === 'credit') {
-                    let { credit } = account.balance;
-
-                    result = callback(credit, amount);
-
-                    if (result < 0) {
-                        return null;
-                    }
-
-                    account.balance.credit = result;
-
-                    let ownBalance =
-                        account.balance.credit - account.creditLimit;
-
-                    if (ownBalance <= 0) {
-                        account.balance.own = 0;
-                    } else {
-                        account.balance.own = ownBalance;
-                    }
-
-                    return account;
-                }
-            }
-
-            return null;
-        });
-
-        if (transactionResult === undefined) {
-            return null;
-        }
-
-        return transactionResult;
     }
 
     findClientById(id) {
