@@ -61,18 +61,26 @@ class Bank {
         return `${date.getMonth() + month}/${date.getFullYear() + year}`;
     }
 
-    conversionCurrencyToUsd(rates, type, amount) {
+    conversionCurrency(
+        rates,
+        currency,
+        amount,
+        baseCurrencyBank,
+        baseCurrencyCountry,
+    ) {
         let result = null;
-        let baseCurrencyRate = rates.find(({ ccy }) => ccy === 'USD');
+        let baseCurrencyRate = rates.find(
+            ({ ccy }) => ccy === baseCurrencyBank,
+        );
 
-        if (type === 'UAH') {
+        if (currency === baseCurrencyCountry) {
             result = amount / baseCurrencyRate.sale;
 
             return Math.round(result * 100) / 100;
         }
 
         rates.forEach(({ ccy, buy }) => {
-            if (type === ccy) {
+            if (currency === ccy) {
                 result = (amount * buy) / baseCurrencyRate.sale;
 
                 return result;
@@ -82,25 +90,26 @@ class Bank {
         return Math.round(result * 100) / 100;
     }
 
-    async getAmountTotal() {
+    async getAmountTotal(baseCurrencyBank, baseCurrencyCountry) {
         const currencyRates = await this.getCurrencyRates();
-        let result = 0;
 
-        this.#clients.forEach(({ accounts }) => {
+        return this.#clients.reduce((result, { accounts }) => {
             accounts.forEach(account => {
                 let { type, currency, balance } = account;
 
                 if (type === 'debit') {
-                    if (currency === 'USD') {
+                    if (currency === baseCurrencyBank) {
                         result += balance;
 
                         return account;
                     }
 
-                    result += this.conversionCurrencyToUsd(
+                    result += this.conversionCurrency(
                         currencyRates,
                         currency,
                         balance,
+                        baseCurrencyBank,
+                        baseCurrencyCountry,
                     );
 
                     return account;
@@ -110,71 +119,80 @@ class Bank {
                     let { own, credit } = account.balance;
                     let totalAmount = own + credit;
 
-                    if (currency === 'USD') {
+                    if (currency === baseCurrencyBank) {
                         result += totalAmount;
 
                         return account;
                     }
 
-                    result += this.conversionCurrencyToUsd(
+                    result += this.conversionCurrency(
                         currencyRates,
                         currency,
                         totalAmount,
+                        baseCurrencyBank,
+                        baseCurrencyCountry,
                     );
 
                     return account;
                 }
-
-                return null;
             });
-        });
 
-        return result;
+            return result;
+        }, 0);
     }
 
-    async getAmountClientsOwe(callback) {
+    async getAmountClientsOwe(mainCurrencyBank, mainCurrencyCountry, callback) {
         const currencyRates = await this.getCurrencyRates();
-        let result = { amount: 0, numberDebtors: 0 };
 
-        this.#clients.forEach(({ isActive, accounts }) => {
-            if (!callback(isActive)) {
-                return false;
-            }
-
-            const totalDebt = accounts.reduce((acc, accounut) => {
-                let { type, currency } = accounut;
-
-                if (type === 'credit') {
-                    let loanAmount =
-                        accounut.creditLimit - accounut.balance.credit;
-
-                    if (loanAmount < 0) {
-                        return acc;
-                    }
-
-                    if (currency === 'USD') {
-                        acc += loanAmount;
-
-                        return acc;
-                    }
-
-                    acc += this.conversionCurrencyToUsd(
-                        currencyRates,
-                        currency,
-                        loanAmount,
-                    );
-
-                    return acc;
+        return this.#clients.reduce(
+            (accumulator, { isActive, accounts }, index) => {
+                if (index === 0) {
+                    accumulator.amount = 0;
+                    accumulator.numberDebtors = 0;
                 }
-            }, 0);
 
-            if (totalDebt > 0) {
-                result.numberDebtors++;
-            }
-            result.amount += totalDebt;
-        });
+                if (!callback(isActive)) {
+                    return accumulator;
+                }
 
-        return result;
+                const totalDebt = accounts.reduce((acc, accounut) => {
+                    let { type, currency } = accounut;
+
+                    if (type === 'credit') {
+                        let loanAmount =
+                            accounut.creditLimit - accounut.balance.credit;
+
+                        if (loanAmount < 0) {
+                            return acc;
+                        }
+
+                        if (currency === mainCurrencyBank) {
+                            acc += loanAmount;
+
+                            return acc;
+                        }
+
+                        acc += this.conversionCurrencyToUsd(
+                            currencyRates,
+                            currency,
+                            loanAmount,
+                            mainCurrencyBank,
+                            mainCurrencyCountry,
+                        );
+
+                        return acc;
+                    }
+                }, 0);
+
+                if (totalDebt > 0) {
+                    accumulator.numberDebtors++;
+                }
+                accumulator.amount += totalDebt;
+
+                return accumulator;
+            },
+            {},
+        );
     }
 
     async getCurrencyRates(handleError) {
@@ -188,8 +206,6 @@ class Bank {
             return rates;
         } catch (error) {
             handleError(error);
-
-            return null;
         }
     }
 }
